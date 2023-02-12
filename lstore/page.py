@@ -21,23 +21,21 @@ class Page:
 
 class PageRange:
     
-    def __init__(self, num_columns):
-        self.num_columns = num_columns
+    def __init__(self):
         self.base_page_list = []
         self.tail_pages = []
-        self.tail_pages.append(Page())
+        self.indexes = 0
         for i in range(MAX_PAGE):
             self.base_page_list.append(Page())
             
-    # def new_base_page(self):
-    #     for i in range(self.num_columns):
-    #         self.base_page_list.append(Page())   
-    
-    def new_tail_page(self):
-        self.tail_pages.append(Page())
-    
-    def has_capacity(self):
-        return self.base_page_list[-1].has_capacity()
+    def indexIncrement(self):
+        self.indexes += 1
+
+    def current_page(self):
+        return self.base_page_list[self.indexes]
+
+    def last_page(self):
+        return self.indexes == 15
         
         
     

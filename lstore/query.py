@@ -43,6 +43,54 @@ class Query:
         self.table.num_records += 1
         
         return True
+    
+    
+    def delete(self, primary_key):
+        
+        # need to complete get_base_record,get_key_indirection,update_record_values,get_tail_record,
+        # delete_rid_tail,update_record_values,num_updates,num_records in table.py
+        
+    base_record = self.table.get_base_record(primary_key) 
+    if base_record is None:
+        raise ValueError(f"Record with primary key {primary_key} does not exist.")
+    self.table.delete_rid_base(*base_record)
+
+    indirection_base_bytes = self.table.get_key_indirection(primary_key)
+    indirection_base_int = int.from_bytes(indirection_base_bytes, byteorder='big')
+
+    if indirection_base_int == MAXINT:
+        self.table.update_record_values(*base_record, 0)
+    else:
+        tail_record = self.table.get_tail_record(indirection_base_int)
+        if tail_record is None:
+            raise ValueError(f"Tail record for primary key {primary_key} does not exist.")
+        self.table.delete_rid_tail(*tail_record)
+        self.table.update_record_values(*tail_record, 0)
+
+        self.table.num_updates -= 1
+    self.table.num_records -= 1
+    
+    def insert_record(self, *columns):
+        
+        # need to complete num_records,num_columns,write_to_base,key_list in table.py
+        
+    indirection = MAXINT
+    rid = self.table.num_records
+    curr_time = int(time.time())
+    schema_encoding = '0' * self.table.num_columns
+    schema_encoding = int.from_bytes(schema_encoding.encode(), byteorder='big')
+
+    default_columns = [indirection, rid, curr_time, schema_encoding]
+    all_columns = default_columns + list(columns)
+    try:
+        self.table.write_to_base(all_columns)
+        self.table.key_list.append(columns[self.table.key_index])
+        self.table.num_records += 1
+        return True
+    except:
+        return False
+
+
 
     
     """

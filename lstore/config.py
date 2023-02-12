@@ -2,3 +2,4 @@ PAGE_SIZE = 4096
 MAX_PAGE = 16
 RECORD_SIZE = 8
 RECORD_PER_PAGE = PAGE_SIZE / RECORD_SIZE # 512 records per page
+defalut_page = 4

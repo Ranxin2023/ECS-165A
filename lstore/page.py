@@ -23,7 +23,6 @@ class PageRange:
     
     def __init__(self):
         self.base_page_list = []
-        self.tail_pages = []
         self.indexes = 0
         for i in range(MAX_PAGE):
             self.base_page_list.append(Page())

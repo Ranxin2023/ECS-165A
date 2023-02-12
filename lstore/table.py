@@ -28,6 +28,32 @@ class Table:
         self.page_directory = {}
         self.index = Index(self)
         pass
+    
+    
+    def table_initialize(self, ):
+        self.page_directory = {'base': [], 'tail': ''}
+        for i in range(self.num_columns + defalut_page):
+            self.page_directory['base'] = [[PageRange()] for j in range(self.num_columns + defalut_page)]
+            self.page_directory['tail'] = [[Page()] for j in range(self.num_columns + defalut_page)]
+
+
+    def write_table(self, data):
+
+
+        # if the page is not full
+
+
+
+        # if the page is full
+        pass
+
+    def rid_record(self, rid):
+
+        pass
+
+    def schema_encoding(self, column):
+
+        pass
 
     def __merge(self):
         print("merge is happening")

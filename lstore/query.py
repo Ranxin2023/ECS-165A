@@ -31,9 +31,10 @@ class Query:
     """
     def insert(self, *columns):
         schema_encoding = 0
+        indirection = MAX_INT
         rid = self.table.num_records
         time = datetime.now().strftime("%Y%m%d%H%M%S")
-        meta_data = [rid, time, schema_encoding]
+        meta_data = [rid, time, schema_encoding, indirection]
         columns = list(columns)
         meta_data.extend(columns)
 

@@ -30,8 +30,18 @@ class Query:
     # Returns False if insert fails for whatever reason
     """
     def insert(self, *columns):
-        schema_encoding = '0' * self.table.num_columns
-        pass
+        schema_encoding = 0
+        rid = self.table.num_records
+        time = datetime.now().strftime("%Y%m%d%H%M%S")
+        meta_data = [rid, time, schema_encoding]
+        columns = list(columns)
+        meta_data.extend(columns)
+
+        self.table.baseWrite(meta_data)
+
+        self.table.num_records += 1
+        
+        return True
 
     
     """

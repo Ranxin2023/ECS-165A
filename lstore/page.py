@@ -26,19 +26,19 @@ class PageRange:
         self.base_page_list = []
         self.tail_pages = []
         self.tail_pages.append(Page())
-        for i in range(num_columns):
+        for i in range(MAX_PAGE):
             self.base_page_list.append(Page())
             
-    def new_base_page(self):
-        for i in range(self.num_columns):
-            self.base_page_list.append(Page())   
+    # def new_base_page(self):
+    #     for i in range(self.num_columns):
+    #         self.base_page_list.append(Page())   
     
     def new_tail_page(self):
         self.tail_pages.append(Page())
     
     def has_capacity(self):
-        num_pages = len(self.base_page_list) + len(self.tail_pages)
-        return num_pages < MAX_PAGE
+        return self.base_page_list[-1].has_capacity()
+        
         
     
     

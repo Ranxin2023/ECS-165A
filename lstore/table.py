@@ -30,30 +30,48 @@ class Table:
         pass
     
     
-    def table_initialize(self, ):
-        self.page_directory = {'base': [], 'tail': ''}
-        for i in range(self.num_columns + defalut_page):
-            self.page_directory['base'] = [[PageRange()] for j in range(self.num_columns + defalut_page)]
-            self.page_directory['tail'] = [[Page()] for j in range(self.num_columns + defalut_page)]
+        def table_initialize(self):
+        # The pageRange is 16 with 4 default_page, schema_encoding, indirection...
+        self.page_directory = {'base': [], 'tail': []}
+        self.page_directory['base'] = [[PageRange()] for _ in range(self.num_columns + DEFAULT_PAGE)]
+        self.page_directory['tail'] = [[Page()] for _ in range(self.num_columns + DEFAULT_PAGE)]
 
 
-    def write_table(self, data):
+    # column is the insert data
+    def baseWrite(self, column):
+
+        for i, value in enumerate(column):
+            pages = self.page_directory['base'][i][-1]
+            page = pages.current_page()
+            # if is the last page
+            if pages.last_page():
+                # check if the last page is full
+                if not page.has_capacity():
+                    # allocate another page
+                    self.page_directory['base'][i].append(PageRange())
+                    # get the current page
+                    page = self.page_directory['base'][i][-1].get_current()
+            # if isn't last page
+            else:
+                if not page.has_capacity():
+                    # current page is full
+                    self.page_directory['base'][i][-1].indexIncrement()
+                    page = pages.current_page()
+
+        # write in
+            page.write(value)
 
 
-        # if the page is not full
+    # same as base write
+    def tailWrite(self, column):
+        for i, value in enumerate(column):
+            pages = self.page_directory['base'][i][-1]
+            page = pages.current_page()
+            if not page.has_capacity():
+                self.page_directory['base'][i][-1].append(PageRange())
+                page = pages.current_page()
+            page.write(column)
 
-
-
-        # if the page is full
-        pass
-
-    def rid_record(self, rid):
-
-        pass
-
-    def schema_encoding(self, column):
-
-        pass
 
     def __merge(self):
         print("merge is happening")

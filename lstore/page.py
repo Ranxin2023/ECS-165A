@@ -16,6 +16,11 @@ class Page:
         begin = (self.num_records - 1) * RECORD_SIZE 
         end = self.num_records * RECORD_SIZE
         self.data[begin:end] = value.to_bytes(RECORD_SIZE, 'little')
+      
+    
+    def get_value(self, index):
+        
+        return self.data[index*8:(index+1) * 8]
         
         
 

@@ -27,15 +27,28 @@ class Table:
         self.num_columns = num_columns
         self.page_directory = {}
         self.index = Index(self)
-        pass
-    
-    
-        def table_initialize(self):
-        # The pageRange is 16 with 4 default_page, schema_encoding, indirection...
-        self.page_directory = {'base': [], 'tail': []}
-        self.page_directory['base'] = [[PageRange()] for _ in range(self.num_columns + DEFAULT_PAGE)]
-        self.page_directory['tail'] = [[Page()] for _ in range(self.num_columns + DEFAULT_PAGE)]
+        self.num_tail = 0
 
+    
+        
+        
+
+    def table_initialize(self):
+        # The pageRange is 16 with 4 default_page, schema_encoding, indirection...
+        self.page_directory = {'base': []}
+        self.page_directory['base'] = [[PageRange()] for _ in range(self.num_columns + DEFAULT_PAGE)]
+
+
+
+    def add_tail(self):
+        self.num_tail += 1
+        self.page_directory['tail'+ str(self.num_tail)] = [[Page()] for _ in range(self.num_columns + DEFAULT_PAGE)]
+
+
+    def if_tail_full(self):
+        if not self.page_directory['tail'][-1].has_capacity():
+            self.add_tail()
+            
 
     # column is the insert data
     def baseWrite(self, column):

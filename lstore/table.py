@@ -46,8 +46,11 @@ class Table:
 
 
     def if_tail_full(self):
-        if not self.page_directory['tail'][-1].has_capacity():
+        if not self.page_directory['tail'+ str(self.num_tail)][-1].has_capacity():
             self.add_tail()
+            return True
+        else:
+            return False
             
 
     # column is the insert data

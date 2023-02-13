@@ -70,25 +70,6 @@ class Query:
         self.table.num_updates -= 1
     self.table.num_records -= 1
     
-    def insert_record(self, *columns):
-        
-        # need to complete num_records,num_columns,write_to_base,key_list in table.py
-        
-    indirection = MAXINT
-    rid = self.table.num_records
-    curr_time = int(time.time())
-    schema_encoding = '0' * self.table.num_columns
-    schema_encoding = int.from_bytes(schema_encoding.encode(), byteorder='big')
-
-    default_columns = [indirection, rid, curr_time, schema_encoding]
-    all_columns = default_columns + list(columns)
-    try:
-        self.table.write_to_base(all_columns)
-        self.table.key_list.append(columns[self.table.key_index])
-        self.table.num_records += 1
-        return True
-    except:
-        return False
 
 
 
@@ -138,7 +119,20 @@ class Query:
     # Returns False if no record exists in the given range
     """
     def sum(self, start_range, end_range, aggregate_column_index):
-        pass
+        selected_rows = []
+
+        for key in self.table.key_lst: #require the keylist of the table
+            if start_range <= key <= end_range:
+              query_column = [0] * self.table.num_columns
+              query_column[aggregate_column_index] = 1
+              selected_rows.append(self.select(key, 0, query_column))
+
+        total_sum = 0
+        for row in selected_rows:
+          value = row.columns[aggregate_column_index]
+          total_sum += value
+
+        return total_sum
 
     
     """

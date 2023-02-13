@@ -76,16 +76,21 @@ class Table:
 
 
     # same as base write
+#    def tailWrite(self, column):
+#         for i, value in enumerate(column):
+#             pages = self.page_directory['base'][i][-1]
+#             page = pages.current_page()
+#             if not page.has_capacity():
+#                 self.page_directory['base'][i][-1].append(PageRange())
+#                 page = pages.current_page()
+#             page.write(column)
+
     def tailWrite(self, column):
         for i, value in enumerate(column):
-            pages = self.page_directory['base'][i][-1]
-            page = pages.current_page()
-            if not page.has_capacity():
-                self.page_directory['base'][i][-1].append(PageRange())
-                page = pages.current_page()
-            page.write(column)
+            page = self.page_directory['tail'+str(self.num_tail)][i]
+            page.write(value)
 
-
+            
     def __merge(self):
         print("merge is happening")
         pass

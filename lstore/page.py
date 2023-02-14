@@ -1,5 +1,6 @@
 from lstore.config import *
 
+
 class Page:
 
     def __init__(self):
@@ -11,8 +12,8 @@ class Page:
 
     def write(self, value):
         #print("value in Page is: {}".format(value))
-        new_value=int(value)
-        self.data[self.num_records * 8:(self.num_records + 1) * 8] = new_value.to_bytes(8, byteorder='big')
+        #new_value=int(value)
+        self.data[self.num_records * 8:(self.num_records + 1) * 8] = int(value).to_bytes(8, byteorder='big')
         self.num_records += 1
 
     def get_value(self, index):
@@ -22,20 +23,19 @@ class Page:
 class PageRange():
 
     def __init__(self):
-        self.base_page_index = 0
+        self.indexes = 0
         self.num_tail = 0
-        self.base_page_list = [Page() for _ in range(MAX_PAGE)]
-        # self.tail_page_list = [Page()]
+        self.pages = [Page() for _ in range(MAX_PAGE)]
 
-    def new_base_page(self):
-        self.base_page_index += 1
-
-    def new_tail_page(self):
-        self.tail_page_list.append(Page())
-        self.num_tail += 1
+    def index_increment(self):
+        self.indexes += 1
 
     def current_page(self):
-        return self.base_page_list[self.base_page_index]
+        return self.pages[self.indexes]
 
     def last_page(self):
-        return self.base_page_index == MAX_PAGE-1
+        return self.indexes == MAX_PAGE-1
+    '''
+    def get_base_idx(self):
+        return self.base_page_index
+    '''

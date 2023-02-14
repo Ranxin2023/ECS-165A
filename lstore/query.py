@@ -66,40 +66,48 @@ class Query:
         # search_key will be the student ID base on the m1_tester
         # Process: go to the base page and find if the data is updated,
         # if updated find the corresponding tail page and return the records
-
         pages = self.table.page_directory['base'][DEFAULT_PAGE + search_key_index]
+        record = []
         records = []
-
-        # 
-
         SID = search_key.to_bytes(8, byteorder='big')
         #  find the SID from the base page
-        # pages_number 是 basepage 里column中第几个，locate_pagerange 是16个pages里第几个，index是page里面那个数是要的答案
+
+        # using the b tree to indexing later on
         pages_number, locate_pageRange, index = self.table.find_value(pages, SID)
 
         indirection = self.table.page_directory['base'][INDIRECTION][pages_number].pages[locate_pageRange].get_value(index)
-        indirection= int.from_bytes(bytes(indirection), byteorder='big')
+        indirection = int.from_bytes(bytes(indirection), byteorder='big')
+        # using the b tree to indexing later on
+        rid = self.table.page_directory['base'][RID][pages_number].pages[locate_pageRange].get_value(index)
         # if the record was modify
-        # locate_tail_page, tail_page = self.table.get_tail_info(indirection)
-        # check if there is another update in tail page
-        # while self.table.page_directory['tail' + str(locate_tail_page)][INDIRECTION].pages[locate_tail_page].get_value(tail_page) != MAX_INT:
-        #
-        #     locate_tail_page, tail_page = self.table.get_tail_info(indirection)
-
         # if the page was modify
+
         if indirection != MAX_INT:
             locate_tail_page, tail_page = self.table.get_tail_info(indirection)
-            tail_RID = self.table.page_directory['tail' + str(locate_tail_page)][INDIRECTION].get_value(tail_page)
-            
-            
+
+            for i in range(DEFAULT_PAGE, DEFAULT_PAGE + self.table.num_columns):
+                value = self.table.page_directory['tail' + str(locate_tail_page)][i].get_value(tail_page)
+                record.append(value)
 
         # if the record was not modify
         else:
+            for i in range(DEFAULT_PAGE, DEFAULT_PAGE + self.table.num_columns):
+                value = self.table.page_directory['base'][i][pages_number].pages[locate_pageRange].get_value(index)
+                record.append(value)
 
-            records.append()
+        for col, data in enumerate(projected_columns_index):
+            if data == 0:
+                record[col] = None
+            else:
+                # convert to int
+                record[col] = int.from_bytes(bytes(record[col]), byteorder='big')
 
+        key = record[self.table.key]
+        rid = int.from_bytes(bytes(rid), byteorder='big')
+        record_class = Record(rid, key, record)
+        records.append(record_class)
 
-            pass
+        return records
 
     
     """

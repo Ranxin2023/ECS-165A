@@ -1,6 +1,7 @@
 from lstore.table import Table, Record
 from lstore.index import Index
-from config import *
+from datetime import datetime
+from lstore.config import *
 
 class Query:
     """
@@ -11,7 +12,8 @@ class Query:
     """
     def __init__(self, table):
         self.table = table
-        pass
+        self.index = Index(table)
+
 
     
     """
@@ -20,58 +22,34 @@ class Query:
     # Returns True upon succesful deletion
     # Return False if record doesn't exist or is locked due to 2PL
     """
+
     def delete(self, primary_key):
+
+
+
         pass
-    
-    
+
     """
     # Insert a record with specified columns
     # Return True upon succesful insertion
     # Returns False if insert fails for whatever reason
     """
     def insert(self, *columns):
-        schema_encoding = 0
-        indirection = MAX_INT
+        schema_encoding = '0' * self.table.num_columns
+        indirection = MAX_INT - 1
         rid = self.table.num_records
         time = datetime.now().strftime("%Y%m%d%H%M%S")
-        meta_data = [rid, time, schema_encoding, indirection]
+        meta_data = [rid, int(time), schema_encoding, indirection]
         columns = list(columns)
         meta_data.extend(columns)
 
         self.table.baseWrite(meta_data)
-
+        
+        # 加【key，RID】进去table.key_RID
+        
         self.table.num_records += 1
-        
+
         return True
-    
-    
-    def delete(self, primary_key):
-        
-        # need to complete get_base_record,get_key_indirection,update_record_values,get_tail_record,
-        # delete_rid_tail,update_record_values,num_updates,num_records in table.py
-        
-    base_record = self.table.get_base_record(primary_key) 
-    if base_record is None:
-        raise ValueError(f"Record with primary key {primary_key} does not exist.")
-    self.table.delete_rid_base(*base_record)
-
-    indirection_base_bytes = self.table.get_key_indirection(primary_key)
-    indirection_base_int = int.from_bytes(indirection_base_bytes, byteorder='big')
-
-    if indirection_base_int == MAXINT:
-        self.table.update_record_values(*base_record, 0)
-    else:
-        tail_record = self.table.get_tail_record(indirection_base_int)
-        if tail_record is None:
-            raise ValueError(f"Tail record for primary key {primary_key} does not exist.")
-        self.table.delete_rid_tail(*tail_record)
-        self.table.update_record_values(*tail_record, 0)
-
-        self.table.num_updates -= 1
-    self.table.num_records -= 1
-    
-
-
 
     
     """
@@ -84,7 +62,44 @@ class Query:
     # Assume that select will never be called on a key that doesn't exist
     """
     def select(self, search_key, search_key_index, projected_columns_index):
-        pass
+        # get the request column
+        # search_key will be the student ID base on the m1_tester
+        # Process: go to the base page and find if the data is updated,
+        # if updated find the corresponding tail page and return the records
+
+        pages = self.table.page_directory['base'][DEFAULT_PAGE + search_key_index]
+        records = []
+
+        # 
+
+        SID = search_key.to_bytes(8, byteorder='big')
+        #  find the SID from the base page
+        # pages_number 是 basepage 里column中第几个，locate_pagerange 是16个pages里第几个，index是page里面那个数是要的答案
+        pages_number, locate_pageRange, index = self.table.find_value(pages, SID)
+
+        indirection = self.table.page_directory['base'][INDIRECTION][pages_number].pages[locate_pageRange].get_value(index)
+        indirection= int.from_bytes(bytes(indirection), byteorder='big')
+        # if the record was modify
+        # locate_tail_page, tail_page = self.table.get_tail_info(indirection)
+        # check if there is another update in tail page
+        # while self.table.page_directory['tail' + str(locate_tail_page)][INDIRECTION].pages[locate_tail_page].get_value(tail_page) != MAX_INT:
+        #
+        #     locate_tail_page, tail_page = self.table.get_tail_info(indirection)
+
+        # if the page was modify
+        if indirection != MAX_INT:
+            locate_tail_page, tail_page = self.table.get_tail_info(indirection)
+            tail_RID = self.table.page_directory['tail' + str(locate_tail_page)][INDIRECTION].get_value(tail_page)
+            
+            
+
+        # if the record was not modify
+        else:
+
+            records.append()
+
+
+            pass
 
     
     """
@@ -107,6 +122,16 @@ class Query:
     # Returns False if no records exist with given key or if the target record cannot be accessed due to 2PL locking
     """
     def update(self, primary_key, *columns):
+        schema_encoding = '0' * self.table.num_columns
+        for i, value in enumerate(columns):
+            if value != None:
+                schema_encoding[i] = 1
+        rid = self.table.num_records
+        self.table.num_records += 1
+        time = datetime.now().strftime("%Y%m%d%H%M%S")
+        indirection = rid
+        
+        
         pass
 
     
@@ -121,16 +146,16 @@ class Query:
     def sum(self, start_range, end_range, aggregate_column_index):
         selected_rows = []
 
-        for key in self.table.key_lst: #require the keylist of the table
+        for key in self.table.key: #traverse through all keys in the table
             if start_range <= key <= end_range:
-              query_column = [0] * self.table.num_columns
-              query_column[aggregate_column_index] = 1
-              selected_rows.append(self.select(key, 0, query_column))
+                query_column = [0] * self.table.num_columns
+                query_column[aggregate_column_index] = 1
+                selected_rows.append(self.select(key, 0, query_column))
 
         total_sum = 0
         for row in selected_rows:
-          value = row.columns[aggregate_column_index]
-          total_sum += value
+            value = row.columns[aggregate_column_index]
+        total_sum += value
 
         return total_sum
 

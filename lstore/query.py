@@ -43,7 +43,7 @@ class Query:
         columns = list(columns)
         meta_data.extend(columns)
 
-        self.table.baseWrite(meta_data)
+        self.table.base_write(meta_data)
         
         # 加【key，RID】进去table.key_RID
         

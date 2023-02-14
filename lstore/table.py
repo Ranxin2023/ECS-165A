@@ -60,31 +60,32 @@ class Table:
 
                         return pages_number, locate_pageRange, index
 
-
-
     # column is the insert data
-    def baseWrite(self, column):
+    def base_write(self, column):
+        # print("column in baseWrite: {}".format(column))
         for i, value in enumerate(column):
             page_range = self.page_directory['base'][i][-1]
             page = page_range.current_page()
+            # print("page range num:{}".format(len(self.page_directory['base'][i])-1))
+            # print("page number:{}".format(page_range.get_base_idx()))
             # if is the last page
             if page_range.last_page():
                 # check if the last page is full
                 if not page.has_capacity():
-                    # allocate another page
+                    # allocate another pagerange
                     self.page_directory['base'][i].append(PageRange())
                     # get the current page
-                    page = self.page_directory['base'][i][-1].get_current()
+                    page = self.page_directory['base'][i][-1].current_page()
             # if isn't last page
             else:
-                if not page.has_capacity():
+               if not page.has_capacity():
                     # current page is full
-                    self.page_directory['base'][i][-1].indexIncrement()
+                    self.page_directory['base'][i][-1].new_base_page()
                     page = page_range.current_page()
 
-        # write in
+            # write in
+            # print("value in baseWrite: {} {}".format(i, value))
             page.write(value)
-
 
     # same as base write
     def tailWrite(self, column):

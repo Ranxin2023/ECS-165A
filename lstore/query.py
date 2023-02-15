@@ -130,17 +130,64 @@ class Query:
     # Returns False if no records exist with given key or if the target record cannot be accessed due to 2PL locking
     """
     def update(self, primary_key, *columns):
-        schema_encoding = '0' * self.table.num_columns
-        for i, value in enumerate(columns):
-            if value != None:
-                schema_encoding[i] = 1
-        rid = self.table.num_records
-        self.table.num_records += 1
+        # in m1_tester primary_key is student ID, *columns = [None, None, None, None, None]
+        update_data = []
+        meta_data = []
+        columns = list(columns)
+        schema_encoding = ['0'] * self.table.num_columns
+        for col, data in enumerate(columns):
+            if data == None:
+                continue
+            else:
+                schema_encoding[col] = '1'
+        schema_encoding = ''.join(schema_encoding)
+        # 查看tail_page 是否满了
+        # 如果tail_page是满的
+        SID = primary_key.to_bytes(8, byteorder='big')
+        pages = self.table.page_directory['base'][DEFAULT_PAGE + 0]
+        pages_number, locate_pageRange, index = self.table.find_value(pages, SID)
+        indirection = self.table.page_directory['base'][INDIRECTION][pages_number].pages[locate_pageRange].get_value(index)
+        indirection = int.from_bytes(bytes(indirection), byteorder='big')
+        schema_encoding = int.from_bytes(schema_encoding.encode(), byteorder='big')
         time = datetime.now().strftime("%Y%m%d%H%M%S")
-        indirection = rid
-        
-        
-        pass
+
+        # 如果tail_page 满了，需要申请另一个tail_page
+        current_tail_page = self.table.page_directory['tail' + str(self.table.num_tail)]
+        # 找出将要写入tail page的rid
+        tail_rid = current_tail_page[RID].num_records + 512 * (self.table.num_tail-1)
+
+        if self.table.if_tail_full():
+            # 找出当前的tail_page和tail rid
+            current_tail_page = self.table.page_directory['tail' + str(self.table.num_tail)]
+            tail_rid = current_tail_page[RID].num_records + (512 * self.table.num_tail-1)
+            # 如果indirection ==  MAX_INT，表示base_page的data没有被update过
+        if indirection == MAX_INT:
+                # 写入data
+            base_rid = self.table.page_directory['base'][RID][pages_number].pages[locate_pageRange].get_value(index)
+            meta_data = [tail_rid, int(time), schema_encoding, base_rid]
+            #  如果indirection ！= MAX_int，表示我需要找到最新update的数据
+        else:
+            locate_tail_page, tail_page = self.table.get_tail_info(indirection)
+            tail_rid_record = self.table.page_directory['tail' + str(locate_tail_page)][RID].get_value(tail_page)
+            meta_data = [tail_rid, int(time), schema_encoding, tail_rid_record]
+
+        self.table.page_directory['base'][INDIRECTION][pages_number].pages[locate_pageRange].update(index, tail_rid)
+        self.table.page_directory['base'][SCHEMA_ENCODING][pages_number].pages[locate_pageRange].update(index, schema_encoding)
+        for col, data in enumerate(columns):
+            # 如果需要修改数据
+            if data != None:
+                base_data = int.from_bytes(bytes(data), byteorder='big')
+                update_data[col] = base_data
+
+            else:
+                value = self.table.page_directory['base'][DEFAULT_PAGE + col][pages_number].pages[
+                locate_pageRange].get_value(index)
+                value = int.from_bytes(bytes(value), byteorder='big')
+                update_data[col] = value
+
+        meta_data.extend(update_data)
+        self.table.tailWrite(meta_data)
+        return True
 
     
     """

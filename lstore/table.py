@@ -24,8 +24,11 @@ class Table:
         self.page_directory = {}
         self.index = Index(self)
         self.num_records = 0
-        self.table_initialize()
+        self.page_directory = dict()
+        self.page_directory['base'] = [[PageRange()] for _ in range(self.num_columns + DEFAULT_PAGE)]
         self.key_RID = {}
+        self.num_tail = 0
+        self.add_tail()
 
     def table_initialize(self):
         # The pageRange is 16 with 4 default_page, schema_encoding, indirection...
@@ -40,18 +43,19 @@ class Table:
 
 
     def if_tail_full(self):
-        if not self.page_directory['tail'+ str(self.num_tail)].has_capacity():
+        if not self.page_directory['tail' + str(self.num_tail)][-1].has_capacity():
             self.add_tail()
-        #     return True
-        # else:
-        #     return False
+            return True
+        else:
+            return False
 
 
 
     # pages is the given column that we are going to find the sid
     def find_value(self, pages, value):
-        for i in range(pages):
-            for j in range(pages[i].pages):
+        # print(pages)
+        for i in range(len(pages)):
+            for j in range(len(pages[i].pages)):
                 for k in range(pages[i].pages[j].num_records):
                     if pages[i].pages[j].get_value(k) == value:
                         pages_number = i
@@ -80,7 +84,7 @@ class Table:
             else:
                if not page.has_capacity():
                     # current page is full
-                    self.page_directory['base'][i][-1].new_base_page()
+                    self.page_directory['base'][i][-1].index_increment()
                     page = page_range.current_page()
 
             # write in

@@ -36,17 +36,18 @@ class Query:
     """
     def insert(self, *columns):
         schema_encoding = '0' * self.table.num_columns
-        indirection = MAX_INT - 1
+        indirection = MAX_INT
         rid = self.table.num_records
         time = datetime.now().strftime("%Y%m%d%H%M%S")
         meta_data = [rid, int(time), schema_encoding, indirection]
         columns = list(columns)
+        # print("columns in insert: {}".format(columns))
         meta_data.extend(columns)
-
+        # print("metadata in insert: {}".format(meta_data))
         self.table.base_write(meta_data)
-        
+
         # 加【key，RID】进去table.key_RID
-        
+        # private variables
         self.table.num_records += 1
 
         return True
@@ -131,7 +132,7 @@ class Query:
     """
     def update(self, primary_key, *columns):
         # in m1_tester primary_key is student ID, *columns = [None, None, None, None, None]
-        update_data = []
+        # update_data = []
         meta_data = []
         columns = list(columns)
         schema_encoding = ['0'] * self.table.num_columns
@@ -145,47 +146,62 @@ class Query:
         # 如果tail_page是满的
         SID = primary_key.to_bytes(8, byteorder='big')
         pages = self.table.page_directory['base'][DEFAULT_PAGE + 0]
+        # print(pages)
         pages_number, locate_pageRange, index = self.table.find_value(pages, SID)
-        indirection = self.table.page_directory['base'][INDIRECTION][pages_number].pages[locate_pageRange].get_value(index)
+
+        indirection = self.table.page_directory['base'][INDIRECTION][pages_number].pages[locate_pageRange].get_value(
+            index)
         indirection = int.from_bytes(bytes(indirection), byteorder='big')
+        # print("indirection in query68: {}".format(indirection))
         schema_encoding = int.from_bytes(schema_encoding.encode(), byteorder='big')
         time = datetime.now().strftime("%Y%m%d%H%M%S")
-
+        # print("self.table.page_directory:{}".format(self.table.page_directory))
         # 如果tail_page 满了，需要申请另一个tail_page
         current_tail_page = self.table.page_directory['tail' + str(self.table.num_tail)]
         # 找出将要写入tail page的rid
-        tail_rid = current_tail_page[RID].num_records + 512 * (self.table.num_tail-1)
+        tail_rid = current_tail_page[RID].num_records + 512 * (self.table.num_tail - 1)
 
         if self.table.if_tail_full():
             # 找出当前的tail_page和tail rid
             current_tail_page = self.table.page_directory['tail' + str(self.table.num_tail)]
-            tail_rid = current_tail_page[RID].num_records + (512 * self.table.num_tail-1)
+            tail_rid = current_tail_page[RID].num_records + (512 * self.table.num_tail - 1)
             # 如果indirection ==  MAX_INT，表示base_page的data没有被update过
         if indirection == MAX_INT:
-                # 写入data
+            # 写入data
             base_rid = self.table.page_directory['base'][RID][pages_number].pages[locate_pageRange].get_value(index)
+            base_rid = int.from_bytes(bytes(base_rid), byteorder='big')
             meta_data = [tail_rid, int(time), schema_encoding, base_rid]
             #  如果indirection ！= MAX_int，表示我需要找到最新update的数据
         else:
             locate_tail_page, tail_page = self.table.get_tail_info(indirection)
+            # print("update88: self.table.page_directory: {}".format(self.table.page_directory))
+            # print("update89: locate_tail_page:{} ".format(locate_tail_page))
+            # print("update92: tail_page:{}".format(tail_page))
             tail_rid_record = self.table.page_directory['tail' + str(locate_tail_page)][RID].get_value(tail_page)
-            meta_data = [tail_rid, int(time), schema_encoding, tail_rid_record]
+            tail_rid_record = int.from_bytes(bytes(tail_rid_record), byteorder='big')
 
+            meta_data = [tail_rid, int(time), schema_encoding, tail_rid_record]
+        # print("query 93 page_directory: {}".format(self.table.page_directory))
         self.table.page_directory['base'][INDIRECTION][pages_number].pages[locate_pageRange].update(index, tail_rid)
-        self.table.page_directory['base'][SCHEMA_ENCODING][pages_number].pages[locate_pageRange].update(index, schema_encoding)
+        self.table.page_directory['base'][SCHEMA_ENCODING][pages_number].pages[locate_pageRange].update(index,
+                                                                                                        schema_encoding)
+        update_data = [0] * len(columns)
         for col, data in enumerate(columns):
             # 如果需要修改数据
             if data != None:
                 base_data = int.from_bytes(bytes(data), byteorder='big')
+
                 update_data[col] = base_data
 
             else:
                 value = self.table.page_directory['base'][DEFAULT_PAGE + col][pages_number].pages[
-                locate_pageRange].get_value(index)
+                    locate_pageRange].get_value(index)
                 value = int.from_bytes(bytes(value), byteorder='big')
+                # print("query:108:update_data len:{}, col:{}".format(len(update_data), col))
                 update_data[col] = value
 
         meta_data.extend(update_data)
+        # print("query 113: metadata:{}".format(meta_data))
         self.table.tailWrite(meta_data)
         return True
 

@@ -38,6 +38,8 @@ class PageRange():
 
     def last_page(self):
         return self.indexes == MAX_PAGE-1
+
+
     '''
     def get_base_idx(self):
         return self.base_page_index

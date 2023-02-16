@@ -18,6 +18,9 @@ class Page:
 
     def get_value(self, index):
         return self.data[index * 8:(index + 1) * 8]
+    
+    def update(self, index, value):
+        self.data[index * 8:(index + 1) * 8] = value.to_bytes(8, byteorder='big')
 
 
 class PageRange():

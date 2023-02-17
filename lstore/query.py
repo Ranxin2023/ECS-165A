@@ -103,7 +103,7 @@ class Query:
                 # convert to int
                 record[col] = int.from_bytes(bytes(record[col]), byteorder='big')
 
-        key = record[self.table.key]
+        key = record[self.table.key_column]
         rid = int.from_bytes(bytes(rid), byteorder='big')
         record_class = Record(rid, key, record)
         records.append(record_class)
@@ -217,7 +217,7 @@ class Query:
     def sum(self, start_range, end_range, aggregate_column_index):
         selected_rows = []
 
-        for key in self.table.key: #traverse through all keys in the table
+        for key in self.table.key_column: #traverse through all keys in the table
             if start_range <= key <= end_range:
                 query_column = [0] * self.table.num_columns
                 query_column[aggregate_column_index] = 1

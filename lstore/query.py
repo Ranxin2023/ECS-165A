@@ -18,16 +18,24 @@ class Query:
     
     """
     # internal Method
-    # Read a record with specified RID
+    # Read a record with specified key
     # Returns True upon succesful deletion
     # Return False if record doesn't exist or is locked due to 2PL
     """
 
-    def delete(self, primary_key):
+    def delete(self, key):
+        rid = self.table.key_RID[key]
+        # address = self.table.page_directory[rid]
+        # record = self.find_record(rid)
+        
+        del self.table.key_RID[key]
+        del self.table.page_directory[rid]
+        
+        # also invaldate tali record
+        # if record[INDIRECTION] != MAX_INT:
+        #     pass
 
-
-
-        pass
+        return True
 
     """
     # Insert a record with specified columns
@@ -47,6 +55,9 @@ class Query:
         self.table.base_write(meta_data)
 
         # 加【key，RID】进去table.key_RID
+        key = columns[self.table.key_column]
+        self.table.key_RID[key] = rid
+        
         # private variables
         self.table.num_records += 1
 
@@ -63,53 +74,48 @@ class Query:
     # Assume that select will never be called on a key that doesn't exist
     """
     def select(self, search_key, search_key_index, projected_columns_index):
-        # get the request column
-        # search_key will be the student ID base on the m1_tester
-        # Process: go to the base page and find if the data is updated,
-        # if updated find the corresponding tail page and return the records
-        pages = self.table.page_directory['base'][DEFAULT_PAGE + search_key_index]
-        record = []
         records = []
-        SID = search_key.to_bytes(8, byteorder='big')
-        #  find the SID from the base page
-
-        # using the b tree to indexing later on
-        pages_number, locate_pageRange, index = self.table.find_value(pages, SID)
-
-        indirection = self.table.page_directory['base'][INDIRECTION][pages_number].pages[locate_pageRange].get_value(index)
-        indirection = int.from_bytes(bytes(indirection), byteorder='big')
-        # using the b tree to indexing later on
-        rid = self.table.page_directory['base'][RID][pages_number].pages[locate_pageRange].get_value(index)
-        # if the record was modify
-        # if the page was modify
-
-        if indirection != MAX_INT:
-            locate_tail_page, tail_page = self.table.get_tail_info(indirection)
-
-            for i in range(DEFAULT_PAGE, DEFAULT_PAGE + self.table.num_columns):
-                value = self.table.page_directory['tail' + str(locate_tail_page)][i].get_value(tail_page)
-                record.append(value)
-
-        # if the record was not modify
-        else:
-            for i in range(DEFAULT_PAGE, DEFAULT_PAGE + self.table.num_columns):
-                value = self.table.page_directory['base'][i][pages_number].pages[locate_pageRange].get_value(index)
-                record.append(value)
-
-        for col, data in enumerate(projected_columns_index):
-            if data == 0:
-                record[col] = None
-            else:
-                # convert to int
-                record[col] = int.from_bytes(bytes(record[col]), byteorder='big')
-
-        key = record[self.table.key_column]
-        rid = int.from_bytes(bytes(rid), byteorder='big')
-        record_class = Record(rid, key, record)
-        records.append(record_class)
-
+        column = []
+        
+        rid = self.table.key_RID[search_key]
+        result = self.table.find_record(rid)
+        column = result[DEFAULT_PAGE:DEFAULT_PAGE + self.table.num_columns + 1]
+        
+        # if record has update record
+        if result[INDIRECTION] != MAX_INT:
+        # use indirection of base record to find tail record
+            rid_tail = result[INDIRECTION]
+            # rid_tail = self.table.key_RID[indirection]
+            result_tail = self.table.find_record(rid_tail)
+            updated_column = result_tail[DEFAULT_PAGE:DEFAULT_PAGE + self.table.num_columns + 1]
+            encoding = result[SCHEMA_ENCODING]
+            encoding = self.find_changed_col(encoding)
+            for i, value in enumerate(encoding):
+                if value == 1:
+                    column[i] = updated_column[i]
+        
+        # take columns that is requested
+        for i in range(self.table.num_columns):
+            if projected_columns_index[i] == 0:
+                column[i] = None
+        
+        record = Record(rid, search_key, column)
+        records.append(record)
         return records
 
+    # helper function to find which columns have updated
+    def find_changed_col(self, encoding):
+        count = self.table.num_columns
+        result = [0 for _ in range(count)]
+        if encoding == 0:
+            return result
+        while encoding != 0:
+            if encoding % 10 == 1:
+                result[count - 1] = 1
+            encoding = encoding // 10
+            count -= 1
+        return result
+        
     
     """
     # Read matching record with specified search key
@@ -131,78 +137,54 @@ class Query:
     # Returns False if no records exist with given key or if the target record cannot be accessed due to 2PL locking
     """
     def update(self, primary_key, *columns):
-        # in m1_tester primary_key is student ID, *columns = [None, None, None, None, None]
-        # update_data = []
-        meta_data = []
-        columns = list(columns)
-        schema_encoding = ['0'] * self.table.num_columns
-        for col, data in enumerate(columns):
-            if data == None:
-                continue
-            else:
-                schema_encoding[col] = '1'
-        schema_encoding = ''.join(schema_encoding)
-        # 查看tail_page 是否满了
-        # 如果tail_page是满的
-        SID = primary_key.to_bytes(8, byteorder='big')
-        pages = self.table.page_directory['base'][DEFAULT_PAGE + 0]
-        # print(pages)
-        pages_number, locate_pageRange, index = self.table.find_value(pages, SID)
-
-        indirection = self.table.page_directory['base'][INDIRECTION][pages_number].pages[locate_pageRange].get_value(
-            index)
-        indirection = int.from_bytes(bytes(indirection), byteorder='big')
-        # print("indirection in query68: {}".format(indirection))
-        schema_encoding = int.from_bytes(schema_encoding.encode(), byteorder='big')
+        tail_rid = self.table.num_records
         time = datetime.now().strftime("%Y%m%d%H%M%S")
-        # print("self.table.page_directory:{}".format(self.table.page_directory))
-        # 如果tail_page 满了，需要申请另一个tail_page
-        current_tail_page = self.table.page_directory['tail' + str(self.table.num_tail)]
-        # 找出将要写入tail page的rid
-        tail_rid = current_tail_page[RID].num_records + 512 * (self.table.num_tail - 1)
-
-        if self.table.if_tail_full():
-            # 找出当前的tail_page和tail rid
-            current_tail_page = self.table.page_directory['tail' + str(self.table.num_tail)]
-            tail_rid = current_tail_page[RID].num_records + (512 * self.table.num_tail - 1)
-            # 如果indirection ==  MAX_INT，表示base_page的data没有被update过
+        columns = list(columns)
+        rid = self.table.key_RID[primary_key]
+        result = self.table.find_record(rid)
+        indirection = result[INDIRECTION]
+        new_encoding = '' 
+        location_base = self.table.page_directory[rid]
+        
+        # first time update
         if indirection == MAX_INT:
-            # 写入data
-            base_rid = self.table.page_directory['base'][RID][pages_number].pages[locate_pageRange].get_value(index)
-            base_rid = int.from_bytes(bytes(base_rid), byteorder='big')
-            meta_data = [tail_rid, int(time), schema_encoding, base_rid]
-            #  如果indirection ！= MAX_int，表示我需要找到最新update的数据
+            tail_indirect = rid
+            for i, value in enumerate(columns):
+                if value == None:
+                    new_encoding += '0'
+                    columns[i] = MAX_INT
+                else:
+                    new_encoding += '1'
         else:
-            locate_tail_page, tail_page = self.table.get_tail_info(indirection)
-            # print("update88: self.table.page_directory: {}".format(self.table.page_directory))
-            # print("update89: locate_tail_page:{} ".format(locate_tail_page))
-            # print("update92: tail_page:{}".format(tail_page))
-            tail_rid_record = self.table.page_directory['tail' + str(locate_tail_page)][RID].get_value(tail_page)
-            tail_rid_record = int.from_bytes(bytes(tail_rid_record), byteorder='big')
+            latest_tail = self.table.find_record(indirection)
+            tail_indirect = latest_tail[RID]
+            encoding = latest_tail[SCHEMA_ENCODING]
+            encoding = self.find_changed_col(encoding)
+            for i, value in enumerate(encoding):
+                if columns[i] != None:
+                    new_encoding += '1'
+                else:
+                    columns[i] = latest_tail[i + DEFAULT_PAGE]
+                    if latest_tail[i + DEFAULT_PAGE] != MAX_INT:
+                        new_encoding += '1'
+                    else:
+                        new_encoding += '0'
 
-            meta_data = [tail_rid, int(time), schema_encoding, tail_rid_record]
-        # print("query 93 page_directory: {}".format(self.table.page_directory))
-        self.table.page_directory['base'][INDIRECTION][pages_number].pages[locate_pageRange].update(index, tail_rid)
-        self.table.page_directory['base'][SCHEMA_ENCODING][pages_number].pages[locate_pageRange].update(index,
-                                                                                                        schema_encoding)
-        update_data = [0] * len(columns)
-        for col, data in enumerate(columns):
-            # 如果需要修改数据
-            if data != None:
-                base_data = int.from_bytes(bytes(data), byteorder='big')
+        # update base record
+        self.table.update_value(INDIRECTION, location_base, tail_rid)
+        self.table.update_value(SCHEMA_ENCODING, location_base, new_encoding)
+        
+        meta_data = [tail_rid, int(time), new_encoding, tail_indirect]
+        
+        # print("columns in insert: {}".format(columns))
+        meta_data.extend(columns)
+        self.table.tail_write(meta_data)
 
-                update_data[col] = base_data
-
-            else:
-                value = self.table.page_directory['base'][DEFAULT_PAGE + col][pages_number].pages[
-                    locate_pageRange].get_value(index)
-                value = int.from_bytes(bytes(value), byteorder='big')
-                # print("query:108:update_data len:{}, col:{}".format(len(update_data), col))
-                update_data[col] = value
-
-        meta_data.extend(update_data)
-        # print("query 113: metadata:{}".format(meta_data))
-        self.table.tailWrite(meta_data)
+        # 加【key，RID】进去table.key_RID
+        key = columns[self.table.key_column]
+        self.table.key_RID[key] = tail_rid
+        self.table.num_records += 1
+        
         return True
 
     
@@ -215,18 +197,23 @@ class Query:
     # Returns False if no record exists in the given range
     """
     def sum(self, start_range, end_range, aggregate_column_index):
-        selected_rows = []
-
-        for key in self.table.key_column: #traverse through all keys in the table
-            if start_range <= key <= end_range:
-                query_column = [0] * self.table.num_columns
-                query_column[aggregate_column_index] = 1
-                selected_rows.append(self.select(key, 0, query_column))
-
         total_sum = 0
-        for row in selected_rows:
-            value = row.columns[aggregate_column_index]
-        total_sum += value
+        column_index = aggregate_column_index + DEFAULT_PAGE
+        for key in range(start_range, end_range + 1):
+            if key in self.table.key_RID.keys():
+                rid = self.table.key_RID[key]
+                record = self.table.find_record(rid)
+                if record[INDIRECTION] == MAX_INT:
+                    total_sum += record[column_index]
+                else:
+                    tail_rid = record[INDIRECTION]
+                    encoding = record[SCHEMA_ENCODING]
+                    encoding = self.find_changed_col(encoding)
+                    if encoding[aggregate_column_index] == 0:
+                        total_sum += record[column_index]
+                    else:
+                        tail_address = self.table.page_directory[tail_rid]
+                        total_sum += self.table.find_value(column_index, tail_address)
 
         return total_sum
 

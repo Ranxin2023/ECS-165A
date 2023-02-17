@@ -28,7 +28,6 @@ class Database():
     # Deletes the specified table
     """
     def drop_table(self, name):
-
         if name in self.tables.keys():
             del self.tables[name]
         else:
@@ -40,7 +39,6 @@ class Database():
     # Returns table with the passed name
     """
     def get_table(self, name):
-     
         if name in self.tables.keys():
             return self.tables[name]
             

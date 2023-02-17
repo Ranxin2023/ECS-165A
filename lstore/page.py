@@ -17,27 +17,36 @@ class Page:
         self.num_records += 1
 
     def get_value(self, index):
-        return self.data[index * 8:(index + 1) * 8]
+        value = int.from_bytes(self.data[index * 8:(index + 1) * 8], 'big')
+        return value
     
     def update(self, index, value):
-        self.data[index * 8:(index + 1) * 8] = value.to_bytes(8, byteorder='big')
+        self.data[index * 8:(index + 1) * 8] = int(value).to_bytes(8, byteorder='big')
 
 
 class PageRange():
 
     def __init__(self):
-        self.indexes = 0
-        self.num_tail = 0
-        self.pages = [Page() for _ in range(MAX_PAGE)]
+        self.base_page_index = 0
+        self.tail_page_index = 0
+        self.base_page = [Page() for _ in range(MAX_PAGE)]
+        self.tail_page = [Page()]
 
-    def index_increment(self):
-        self.indexes += 1
+    def inc_base_page_index(self):
+        self.base_page_index += 1
 
-    def current_page(self):
-        return self.pages[self.indexes]
+    def current_base_page(self):
+        return self.base_page[self.base_page_index]
+    
+    def current_tail_page(self):
+        return self.tail_page[self.tail_page_index]
+    
+    def add_tail_page(self):
+        self.base_page.append(Page())
+        self.base_page_index += 1
 
-    def last_page(self):
-        return self.indexes == MAX_PAGE-1
+    def last_base_page(self):
+        return self.base_page_index == MAX_PAGE - 1
 
 
     '''

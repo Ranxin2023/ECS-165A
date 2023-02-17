@@ -24,94 +24,97 @@ class Table:
         self.page_directory = {}
         self.index = Index(self)
         self.num_records = 0
-        self.page_directory = dict()
-        self.page_directory['base'] = [[PageRange()] for _ in range(self.num_columns + DEFAULT_PAGE)]
+        self.page_range_list = [[PageRange() for _ in range(self.num_columns + DEFAULT_PAGE)]]
+        self.page_range_index = 0
         self.key_RID = {}
-        self.num_tail = 0
-        self.add_tail()
+        
+    def new_page_range(self):
+        self.page_range_list.append([PageRange() for _ in range(self.num_columns + DEFAULT_PAGE)])
+        self.page_range_index += 1
 
-    def table_initialize(self):
-        # The pageRange is 16 with 4 default_page, schema_encoding, indirection...
-        self.page_directory = {'base': []}
-        self.page_directory['base'] = [[PageRange()] for _ in range(self.num_columns + DEFAULT_PAGE)]
-
-
-
-    def add_tail(self):
-        self.num_tail += 1
-        self.page_directory['tail'+ str(self.num_tail)] = [Page() for _ in range(self.num_columns + DEFAULT_PAGE)]
-
-
-    def if_tail_full(self):
-        if not self.page_directory['tail' + str(self.num_tail)][-1].has_capacity():
-            self.add_tail()
-            return True
-        else:
-            return False
-
-
-
-    # pages is the given column that we are going to find the sid
-    def find_value(self, pages, value):
-        # print(pages)
-        for i in range(len(pages)):
-            for j in range(len(pages[i].pages)):
-                for k in range(pages[i].pages[j].num_records):
-                    if pages[i].pages[j].get_value(k) == value:
-                        pages_number = i
-                        locate_pageRange = j
-                        index = k
-
-                        return pages_number, locate_pageRange, index
 
     # column is the insert data
-    def base_write(self, column):
+    def base_write(self, columns):
         # print("column in baseWrite: {}".format(column))
-        for i, value in enumerate(column):
-            page_range = self.page_directory['base'][i][-1]
-            page = page_range.current_page()
-            # print("page range num:{}".format(len(self.page_directory['base'][i])-1))
+        for i, value in enumerate(columns):
+            page_range = self.page_range_list[self.page_range_index][i]
+            page = page_range.current_base_page()
+            
+            # print("page range num:{}".format(len(self.page_range_list['base'][i])-1))
             # print("page number:{}".format(page_range.get_base_idx()))
-            # if is the last page
-            if page_range.last_page():
+            
+            # if is the last page in the page range
+            if page_range.last_base_page():
                 # check if the last page is full
                 if not page.has_capacity():
                     # allocate another pagerange
-                    self.page_directory['base'][i].append(PageRange())
+                    self.new_page_range()
                     # get the current page
-                    page = self.page_directory['base'][i][-1].current_page()
-            # if isn't last page
+                    page_range = self.page_range_list[self.page_range_index][i]
+                    page = page_range.current_base_page()
+            # if isn't last page in the page range
             else:
                if not page.has_capacity():
                     # current page is full
-                    self.page_directory['base'][i][-1].index_increment()
-                    page = page_range.current_page()
+                    page_range.inc_base_page_index()
+                    page = page_range.current_base_page()
 
             # write in
             # print("value in baseWrite: {} {}".format(i, value))
             page.write(value)
+        # write address into page directory
+        rid = columns[self.key_column]
+        address = ["base", self.page_range_index, page_range.base_page_index, page.num_records - 1]
+        self.page_directory[rid] = address
 
-    # same as base write
-    def tailWrite(self, column):
-        for i, value in enumerate(column):
-            page = self.page_directory['tail'+str(self.num_tail)][i]
+    def tail_write(self, columns):
+        # print("column in baseWrite: {}".format(column))
+        for i, value in enumerate(columns):
+            page_range = self.page_range_list[self.page_range_index][i]
+            page = page_range.current_tail_page()
+            
+            # print("page range num:{}".format(len(self.page_range_list['base'][i])-1))
+            # print("page number:{}".format(page_range.get_base_idx()))
+            
+            # check if page is full
+            if not page.has_capacity():
+                # current page is full
+                page_range.add_tail_page()
+                page = page_range.current_tail_page()
+            # write in
+            # print("value in tail_write: {} {}".format(i, value))
             page.write(value)
+        # write address into page directory
+        rid = columns[self.key_column]
+        address = ["tail", self.page_range_index, page_range.tail_page_index, page.num_records - 1]
+        self.page_directory[rid] = address
 
-
-    def get_tail_info(self, indirection):
-        # find the tail page
-        locate_tail_page = (indirection // RECORD_PER_PAGE) + 1
-        tail_page = indirection % RECORD_PER_PAGE
-
-        return locate_tail_page, tail_page
-
-    def get_indirection(self, rid, locate_tail_page):
-
-        return self.page_directory['tail'+str(locate_tail_page)][INDIRECTION].get(rid)
-
-    def base_delete(self, rid):
-
-        pass
+    # pages is the given column that we are going to find the sid
+    def find_value(self, column_index, location):
+        page_range = self.page_range_list[location[1]][column_index]
+        if location[0] == "base":
+            page = page_range.base_page[location[2]]
+        elif location[0] == "tail":
+            page = page_range.tail_page[location[2]]
+            
+        value = page.get_value(location[3])
+        return value   
+    
+    def update_value(self, column_index, location, value):
+        page_range = self.page_range_list[location[1]][column_index]
+        if location[0] == "base":
+            page = page_range.base_page[location[2]]
+        elif location[0] == "tail":
+            page = page_range.tail_page[location[2]]
+        page.update(location[3], value)
+        
+    def find_record(self, rid):
+        row = []
+        location = self.page_directory[rid]
+        for i in range(DEFAULT_PAGE + self.num_columns):
+            result = self.find_value(i, location)
+            row.append(result)
+        return row
 
     def __merge(self):
         print("merge is happening")

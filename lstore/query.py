@@ -43,6 +43,11 @@ class Query:
     # Returns False if insert fails for whatever reason
     """
     def insert(self, *columns):
+        # 加【key，RID】进去table.key_RID
+        key = columns[self.table.key_column]
+        if key in self.table.key_RID.keys():
+            return False;
+        
         schema_encoding = '0' * self.table.num_columns
         indirection = MAX_INT
         rid = self.table.num_records
@@ -54,10 +59,7 @@ class Query:
         # print("metadata in insert: {}".format(meta_data))
         self.table.base_write(meta_data)
 
-        # 加【key，RID】进去table.key_RID
-        key = columns[self.table.key_column]
         self.table.key_RID[key] = rid
-        
         # private variables
         self.table.num_records += 1
 
@@ -137,9 +139,15 @@ class Query:
     # Returns False if no records exist with given key or if the target record cannot be accessed due to 2PL locking
     """
     def update(self, primary_key, *columns):
+        columns = list(columns)
+        if primary_key not in self.table.key_RID.keys():
+            return False;
+        if columns[self.table.key_column] in self.table.key_RID.keys():
+            return False;
+        
         tail_rid = self.table.num_records
         time = datetime.now().strftime("%Y%m%d%H%M%S")
-        columns = list(columns)
+        
         rid = self.table.key_RID[primary_key]
         result = self.table.find_record(rid)
         indirection = result[INDIRECTION]

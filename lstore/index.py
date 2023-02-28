@@ -3,14 +3,16 @@ A data strucutre holding indices for various columns of a table. Key column shou
 """
 
 from lstore.page import Page
-from lstore.btree import BTree
+from BTrees.OOBTree import OOBTree
 class Index:
 
     def __init__(self, table):
         # One index for each table. All our empty initially.
-        self.indices = [list() for i in range(table.total_num_columns)]
+        self.indices = [None for i in range(table.total_num_columns)]
+
         self.column_num = dict()
         self.table = table
+        self.indices[self.table.key_column] = OOBTree()
         pass
 
     """
@@ -18,12 +20,12 @@ class Index:
     """
 
     def locate(self, column, value):
-        return_list = []
-        column_values = sorted(self.indices[column])
-        for column_rid in column_values:
-            if column_rid[0] == value:
-                return_list.append(column_rid[1])
-        return return_list
+        #return_list = []
+        column_btree = self.indices[column]
+        #print(type(column_btree))
+        if not column_btree.has_key(value):
+            return []
+        return column_btree[value]
 
     """
     # Returns the RIDs of all records with values in column "column" between "begin" and "end"
@@ -31,31 +33,40 @@ class Index:
 
     def locate_range(self, begin, end, column):
         return_list = []
-        column_values = sorted(self.indices[column])
-
-        for column_rid in column_values:
-            if column_rid[0] >= begin and column_rid[0] <=end:
-                return_list.append(column_rid[1])
+        column_btree = self.indices[column]
+        for list1 in list(column_btree.values(min=begin, max=end)):
+            return_list += list1
         return return_list
+
 
     """
     # optional: Create index on specific column
     """
 
     def create_index(self, column_number):
-        pass
+        self.indices[column_number] = OOBTree()
+
 
     """
     # optional: Drop index of specific column
     """
 
     def drop_index(self, column_number):
-        pass
+        #del self.indices[column_number]
+        self.indices[column_number] = None
+
 
     def push_index(self, columns):
         for i in range(1, self.table.total_num_columns):
-            self.indices[i].append((columns[i], columns[0]))
+            if self.indices[i] == None:
+                self.create_index(i)
+            #print("indices:{}".format(self.indices))
+            if not self.indices[i].has_key(columns[i]):
+                self.indices[i][columns[i]]= [columns[0]]
+            else:
+                self.indices[i][columns[i]].append(columns[0])
             self.column_num[columns[i]] = i
+
     '''
     def lower_bound(self, list):
         low, up=0, len(list)-1

@@ -3,6 +3,7 @@ from time import time
 from lstore.config import *
 from lstore.page import PageRange, Page
 
+
 class Record:
 
     def __init__(self, rid, key, columns):
@@ -10,39 +11,44 @@ class Record:
         self.key = key
         self.columns = columns
 
-class Table:
 
+class Table:
     """
     :param name: string         #Table name
     :param num_columns: int     #Number of Columns: all columns are integer
     :param key: int             #Index of table key in columns
     """
+
     def __init__(self, name, num_columns, key_column):
         self.name = name
         self.key_column = key_column
+
         self.num_columns = num_columns
+        self.total_num_columns = self.num_columns+DEFAULT_PAGE
+        #print("{}".format(self.num_columns))
         self.page_directory = {}
         self.index = Index(self)
         self.num_records = 0
-        self.page_range_list = [[PageRange() for _ in range(self.num_columns + DEFAULT_PAGE)]]
+        self.page_range_list = [[PageRange() for _ in range(self.total_num_columns)]]
         self.page_range_index = 0
         self.key_RID = {}
-        
+
+
     def new_page_range(self):
         self.page_range_list.append([PageRange() for _ in range(self.num_columns + DEFAULT_PAGE)])
         self.page_range_index += 1
 
-
     # column is the insert data
     def base_write(self, columns):
-        # print("column in baseWrite: {}".format(column))
+        #print("page_directory: {}".format(self.key_RID))
+        #print("column in baseWrite: {}".format(columns))
         for i, value in enumerate(columns):
             page_range = self.page_range_list[self.page_range_index][i]
             page = page_range.current_base_page()
-            
+
             # print("page range num:{}".format(len(self.page_range_list['base'][i])-1))
             # print("page number:{}".format(page_range.get_base_idx()))
-            
+
             # if is the last page in the page range
             if page_range.last_base_page():
                 # check if the last page is full
@@ -54,7 +60,7 @@ class Table:
                     page = page_range.current_base_page()
             # if isn't last page in the page range
             else:
-               if not page.has_capacity():
+                if not page.has_capacity():
                     # current page is full
                     page_range.inc_base_page_index()
                     page = page_range.current_base_page()
@@ -62,8 +68,14 @@ class Table:
             # write in
             # print("value in baseWrite: {} {}".format(i, value))
             page.write(value)
+        #write in index
+        #print("column in baseWrite: {}".format(columns))
+        self.index.push_index(columns)
+        #print("find 93 score: {}".format(self.index.locate(5, 93)))
+        #print("find range from 80 to 90:{}".format(self.index.locate_range(80, 90, 5)))
         # write address into page directory
         rid = columns[self.key_column]
+        #print("rid is: {}".format(rid))
         address = ["base", self.page_range_index, page_range.base_page_index, page.num_records - 1]
         self.page_directory[rid] = address
 
@@ -72,10 +84,10 @@ class Table:
         for i, value in enumerate(columns):
             page_range = self.page_range_list[self.page_range_index][i]
             page = page_range.current_tail_page()
-            
+
             # print("page range num:{}".format(len(self.page_range_list['base'][i])-1))
             # print("page number:{}".format(page_range.get_base_idx()))
-            
+
             # check if page is full
             if not page.has_capacity():
                 # current page is full
@@ -96,10 +108,10 @@ class Table:
             page = page_range.base_page[location[2]]
         elif location[0] == "tail":
             page = page_range.tail_page[location[2]]
-            
+
         value = page.get_value(location[3])
-        return value   
-    
+        return value
+
     def update_value(self, column_index, location, value):
         page_range = self.page_range_list[location[1]][column_index]
         if location[0] == "base":
@@ -107,7 +119,7 @@ class Table:
         elif location[0] == "tail":
             page = page_range.tail_page[location[2]]
         page.update(location[3], value)
-        
+
     def find_record(self, rid):
         row = []
         location = self.page_directory[rid]

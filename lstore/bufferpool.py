@@ -56,14 +56,22 @@ class BufferPool:
             return self.page_directories[buffer_id]
         
 
-    def read_page(self, page_path):
-        f = open(page_path, "rb")
-        page = f.read()  # Load entire page object
+     def read_page(self, path):
+        f = open(path, 'rb')
+        page = pickle.load(f)
         new_page = Page()
-        new_page.from_file(page)
+        new_page.num_records = page.num_records
+        new_page.data = page.data
         f.close()
         return new_page
 
+     def write_page(self, page, path):
+        dirname = os.path.dirname(path)
+        if not os.path.exists(dirname):
+            os.makedirs(dirname)
+        f = open(path, 'wb')
+        pickle.dump(page, f)
+        f.close()
 
 
 

@@ -18,7 +18,7 @@ class BufferPool:
     def is_full(self):
         return self.LRU.is_full()
 
-    def is_page_in_buffer(self, buffer_id):
+    def page_buffer_checker(self, buffer_id):
         return buffer_id in self.page_directories
 
     def uid_to_path(self, buffer_id):

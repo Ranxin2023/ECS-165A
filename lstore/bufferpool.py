@@ -1,9 +1,9 @@
 from datetime import datetime
-
 from lstore.LRU import LRU
 from lstore.page import Page, MyPage
 from lstore.config import *
 import numpy as np
+import pickle
 import os
 
 class BufferPool:
@@ -56,7 +56,7 @@ class BufferPool:
             return self.page_directories[buffer_id]
         
 
-     def read_page(self, path):
+    def read_page(self, path):
         f = open(path, 'rb')
         page = pickle.load(f)
         new_page = Page()
@@ -65,7 +65,7 @@ class BufferPool:
         f.close()
         return new_page
 
-     def write_page(self, page, path):
+    def write_page(self, page, path):
         dirname = os.path.dirname(path)
         if not os.path.exists(dirname):
             os.makedirs(dirname)

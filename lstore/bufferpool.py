@@ -21,10 +21,15 @@ class BufferPool:
     def page_buffer_checker(self, buffer_id):
         return buffer_id in self.page_directories
 
-    def uid_to_path(self, buffer_id):
-
-        t_name, base_tail, column_id, page_range_id, page_id = buffer_id
-        path = os.path.join(self.path, t_name, base_tail, str(column_id),str(page_range_id), str(page_id) + ".pkl")
+    def bufferid_path_pkl(self, buffer_id):
+        table_name, base_tail, page_range, column_page, page_index = buffer_id
+        path =  os.path.join(self.path, table_name, base_tail, str(column_page), str(page_range), str(page_index) + 'pkl')
+        return path
+    
+    
+    def bufferid_path_txt(self, buffer_id):
+        table_name, base_tail, page_range, column_page, page_index = buffer_id
+        path =  os.path.join(self.path, table_name, base_tail, str(column_page), str(page_range), str(page_index) + 'txt')
         return path
 
     def write_page(self, columns, path):

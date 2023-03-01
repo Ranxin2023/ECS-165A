@@ -39,12 +39,25 @@ class Table:
         self.page_range_index += 1
 
     # column is the insert data
+    def locate_page_range_index(self):
+        locate_page_range = self.num_records // RECORD_PER_PAGE // MAX_PAGE
+        page_index = (self.num_records // RECORD_PER_PAGE) % MAX_PAGE
+
+        return locate_page_range, page_index
+
+    # column is the insert data
     def base_write(self, columns):
-        #print("page_directory: {}".format(self.key_RID))
-        #print("column in baseWrite: {}".format(columns))
+        # print("column in baseWrite: {}".format(column))
         for i, value in enumerate(columns):
+            locate_page_range, page_index = self.locate_page_range_index()
+            page_info = [self.name, 'Base', i, locate_page_range, page_index]
             page_range = self.page_range_list[self.page_range_index][i]
-            page = page_range.current_base_page()
+            page_from_memory = page_range.current_base_page()
+            page_from_buffer = self.bufferpool.get_page(*page_info)
+            buffer_id = tuple(page_info)
+
+            buffer_path_pickle = self.bufferpool.bufferid_path_pkl(buffer_id)
+            self.bufferpool.write_page(page_from_buffer, buffer_path_pickle)
 
             # print("page range num:{}".format(len(self.page_range_list['base'][i])-1))
             # print("page number:{}".format(page_range.get_base_idx()))
@@ -52,31 +65,42 @@ class Table:
             # if is the last page in the page range
             if page_range.last_base_page():
                 # check if the last page is full
-                if not page.has_capacity():
+                if not page_from_memory.has_capacity() and not page_from_buffer.has.capacity():
                     # allocate another pagerange
                     self.new_page_range()
                     # get the current page
                     page_range = self.page_range_list[self.page_range_index][i]
-                    page = page_range.current_base_page()
+                    page_range_index = self.page_range_index
+                    page_info[-2] = page_range_index
+                    page_info[-1] = 0
+                    page_from_memory = page_range.current_base_page()
+                    page_from_buffer = self.bufferpool.get_page(*page_info)
+
             # if isn't last page in the page range
             else:
-                if not page.has_capacity():
+                if not page_from_memory.has_capacity() and not page_from_buffer.has_capacity():
                     # current page is full
                     page_range.inc_base_page_index()
-                    page = page_range.current_base_page()
-
+                    page_from_memory = page_range.current_base_page()
+                    page_info[-1] += 1
+                    page_from_buffer = self.bufferpool.get_page(*page_info)
             # write in
             # print("value in baseWrite: {} {}".format(i, value))
-            page.write(value)
-        #write in index
-        #print("column in baseWrite: {}".format(columns))
-        self.index.push_index(columns)
-        #print("find 93 score: {}".format(self.index.locate(5, 93)))
-        #print("find range from 80 to 90:{}".format(self.index.locate_range(80, 90, 5)))
+
+            page_from_memory.write(value)
+
+
+            self.bufferpool.write_page(page_from_buffer, buffer_path_pickle)
+
+            buffer_path = self.bufferpool.bufferid_path_txt(buffer_id)
+
+            self.bufferpool.disk_write_page(buffer_path, value)
+            page_from_memory.dirty = 1
+            page_from_buffer.dirty = 1
+
         # write address into page directory
         rid = columns[self.key_column]
-        #print("rid is: {}".format(rid))
-        address = ["base", self.page_range_index, page_range.base_page_index, page.num_records - 1]
+        address = ["base", self.page_range_index, page_range.base_page_index, page_from_memory.num_records - 1]
         self.page_directory[rid] = address
 
     def tail_write(self, columns):

@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from lstore.LRU import LRU
 from lstore.page import Page, MyPage
 from lstore.config import *
@@ -32,26 +34,11 @@ class BufferPool:
         path =  os.path.join(self.path, table_name, base_tail, str(column_page), str(page_range), str(page_index) + 'txt')
         return path
 
-    def write_page(self, columns, path):
-        arr = np.zeros(shape=(len(columns), 7), dtype='int')
-        # transfer to int
-        for i in range(len(columns)):
-            for j in range(len(columns[i])):
-                # print(int.from_bytes(columns[i][j], "big"))
-                arr[i][j] = int.from_bytes(columns[i][j], byteorder="big")
-        # write
-        dirname = os.path.dirname(path)
-        print(dirname)
-        if not os.path.exists(dirname):
-            os.makedirs(dirname)
-        f = open(path, "w")
-        content = str(arr)
-        f.write(content)
-        f.close()
+   
         
     def get_page(self, table_name, base_tail, column_page, page_range, page_index):
         buffer_id = (table_name, base_tail, column_page, page_range, page_index)
-        path = self.bufferid_path(buffer_id)
+        path = self.bufferid_path_pkl(buffer_id)
         # create new_page
         if not os.path.isfile(path):
             self.add_page(buffer_id, default=False)
@@ -76,6 +63,8 @@ class BufferPool:
         new_page.from_file(page)
         f.close()
         return new_page
+
+
 
 
 

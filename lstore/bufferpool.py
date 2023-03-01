@@ -8,10 +8,13 @@ import os
 
 class BufferPool:
     def __init__(self):
-        self.path=None
+        self.path="./ECS165"
         self.LRU = LRU()
         self.page_directories={}
         #self.popped_directories={}
+        
+    def initial_path(self, path):
+        self.path = path
 
     def add_pages(self, buffer_id):
         self.page_directories[buffer_id] = MyPage()

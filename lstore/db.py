@@ -1,14 +1,21 @@
 from lstore.table import Table
+from lstore.bufferpool import *
+import os
 
 class Database():
 
     def __init__(self):
+        self.path = ''
         self.tables = {}
-        pass
+        self.bufferpool = BufferPool()
+
 
     # Not required for milestone1
     def open(self, path):
-        pass
+        self.path = path
+        if not os.path.exists(path):
+            os.makedirs(path)
+        self.bufferpool.initial_path(path)
 
     def close(self):
         pass

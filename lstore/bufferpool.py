@@ -43,11 +43,31 @@ class BufferPool:
         content = str(arr)
         f.write(content)
         f.close()
+        
+    def get_page(self, table_name, base_tail, column_page, page_range, page_index):
+        buffer_id = (table_name, base_tail, column_page, page_range, page_index)
+        path = self.bufferid_path(buffer_id)
+        # create new_page
+        if not os.path.isfile(path):
+            self.add_page(buffer_id, default=False)
+            dirname = os.path.dirname(path)
+            if not os.path.isdir(dirname):
+                os.makedirs(dirname)
+            f = open(path, "w+")
+            f.close()
+        #     page already exist
+        else:
+            if not self.page_buffer_checker(buffer_id):
+                self.page_directories[buffer_id] = self.read_page(path)
+                
+            self.LRU.put(buffer_id, datetime.timestamp(datetime.now()))
+            return self.page_directories[buffer_id]
+        
 
     def read_page(self, page_path):
         f = open(page_path, "rb")
         page = f.read()  # Load entire page object
-        new_page = MyPage()
+        new_page = Page()
         new_page.from_file(page)
         f.close()
         return new_page

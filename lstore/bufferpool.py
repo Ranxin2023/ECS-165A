@@ -11,11 +11,18 @@ class BufferPool:
         self.path="./ECS165"
         self.LRU = LRU()
         self.page_directories={}
+        self.tps = {}
         #self.popped_directories={}
         
     def initial_path(self, path):
         self.path = path
 
+#     need for merge
+    def initial_tps(self, t_name):
+        if t_name not in self.tps.keys():
+            self.tps[t_name] = {}
+            
+            
     def add_pages(self, buffer_id):
         self.page_directories[buffer_id] = MyPage()
         self.page_directories[buffer_id].set_dirty()

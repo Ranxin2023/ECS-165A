@@ -73,6 +73,7 @@ class Table:
                     page = page_range.current_base_page()
                     
             buffer_id = (self.name, "base", i, self.page_range_index, page_range.base_page_index)
+            print(page_range.base_page_index)
             page = self.buffer_pool.get_page(buffer_id)
             # write in
             # print("value in baseWrite: {} {}".format(i, value))
@@ -80,9 +81,13 @@ class Table:
             offset = page.num_records - 1
             self.buffer_pool.updata_pool(buffer_id, page)
             
+            page_range = self.page_range_list[self.page_range_index][i]
+            page_range.base_page[page_range.base_page_index] = page
+            
+            
         #write in index
         #print("column in baseWrite: {}".format(columns))
-        # self.index.push_index(columns)
+        self.index.push_index(columns)
         
         # write address into page directory
         rid = columns[0]

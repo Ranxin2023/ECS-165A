@@ -18,8 +18,6 @@ class Query:
         self.table = table
         self.index = Index(table)
 
-
-    
     """
     # internal Method
     # Read a record with specified key
@@ -29,15 +27,9 @@ class Query:
 
     def delete(self, key):
         rid = self.table.key_RID[key]
-        # address = self.table.page_directory[rid]
-        # record = self.find_record(rid)
         
         del self.table.key_RID[key]
         del self.table.page_directory[rid]
-        
-        # also invaldate tali record
-        # if record[INDIRECTION] != MAX_INT:
-        #     pass
 
         return True
 
@@ -76,41 +68,54 @@ class Query:
     # Returns False if record locked by TPL
     # Assume that select will never be called on a key that doesn't exist
     """
+    def find_column_bufferID(self, column):
+        buffer_rid = []
+        num_page_range = self.table.page_range_index + 1
+        for i in range(num_page_range):
+            for k in range(self.table.page_range_list[i].base_page_index):
+                buffer_id = (self.table.table_path, "base", str(column), str(i), str(k))
+                buffer_rid.append(buffer_id) 
+        
+        return buffer_rid
+    
+    
     def select(self, search_key, search_key_index, projected_columns_index):
         records = []
         column = []
+        rids = []
+        
+        index_column = search_key_index + DEFAULT_PAGE
         if search_key_index == self.table.key_column:
             rid = self.table.key_RID[search_key]
+            rids.append(rid)
+        else:
+            rids = self.find_column_bufferID(index_column)
         
-        """
-        # else：
-        # loop through whole column to find a list of rid
-        """
+        for rid in rids:
+            result = self.table.find_record(rid)
+            # print(result)
+            column = result[DEFAULT_PAGE:DEFAULT_PAGE + self.table.num_columns + 1]
+        
+            # if record has update record
+            if result[INDIRECTION] != MAX_INT:
+            # use indirection of base record to find tail record
+                rid_tail = result[INDIRECTION]
+                # rid_tail = self.table.key_RID[indirection]
+                result_tail = self.table.find_record(rid_tail)
+                updated_column = result_tail[DEFAULT_PAGE:DEFAULT_PAGE + self.table.num_columns + 1]
+                encoding = result[SCHEMA_ENCODING]
+                encoding = self.find_changed_col(encoding)
+                for i, value in enumerate(encoding):
+                    if value == 1:
+                        column[i] = updated_column[i]
+        
+            # take columns that is requested
+            for i in range(self.table.num_columns):
+                if projected_columns_index[i] == 0:
+                    column[i] = None
+            record = Record(rid, search_key, column)
+            records.append(record)
             
-        result = self.table.find_record(rid)
-        # print(result)
-        column = result[DEFAULT_PAGE:DEFAULT_PAGE + self.table.num_columns + 1]
-        
-        # if record has update record
-        if result[INDIRECTION] != MAX_INT:
-        # use indirection of base record to find tail record
-            rid_tail = result[INDIRECTION]
-            # rid_tail = self.table.key_RID[indirection]
-            result_tail = self.table.find_record(rid_tail)
-            updated_column = result_tail[DEFAULT_PAGE:DEFAULT_PAGE + self.table.num_columns + 1]
-            encoding = result[SCHEMA_ENCODING]
-            encoding = self.find_changed_col(encoding)
-            for i, value in enumerate(encoding):
-                if value == 1:
-                    column[i] = updated_column[i]
-        
-        # take columns that is requested
-        for i in range(self.table.num_columns):
-            if projected_columns_index[i] == 0:
-                column[i] = None
-        
-        record = Record(rid, search_key, column)
-        records.append(record)
         return records
 
     # helper function to find which columns have updated

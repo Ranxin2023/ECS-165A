@@ -26,6 +26,14 @@ class Page:
     def get_value(self, index):
         value = int.from_bytes(self.data[index * 8:(index + 1) * 8], 'big')
         return value
+    
+    def find_value(self, target):
+        offsets = []
+        for i in range(RECORD_PER_PAGE):
+            value = int.from_bytes(self.data[i * 8:(i + 1) * 8], 'big')
+            if value == target:
+                offsets.append(i)
+        return offsets        
 
     def update(self, index, value):
         self.data[index * 8:(index + 1) * 8] = int(value).to_bytes(8, byteorder='big')

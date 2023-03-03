@@ -7,7 +7,7 @@ import pickle
 import os
 
 class BufferPool:
-    def __init__(self, capacity = 200):
+    def __init__(self, capacity = 500):
         self.path = ""
         self.LRU = LRU()
         self.capcity = capacity

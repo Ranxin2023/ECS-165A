@@ -3,6 +3,10 @@ from lstore.index import Index
 from datetime import datetime
 from lstore.config import *
 
+
+
+
+
 class Query:
     """
     # Creates a Query object that can perform different queries on the specified table 
@@ -57,11 +61,8 @@ class Query:
         # print("columns in insert: {}".format(columns))
         meta_data.extend(columns)
         # print("metadata in insert: {}".format(meta_data))
+        
         self.table.base_write(meta_data)
-
-        self.table.key_RID[key] = rid
-        # private variables
-        self.table.num_records += 1
 
         return True
 
@@ -78,9 +79,16 @@ class Query:
     def select(self, search_key, search_key_index, projected_columns_index):
         records = []
         column = []
+        if search_key_index == self.table.key_column:
+            rid = self.table.key_RID[search_key]
         
-        rid = self.table.key_RID[search_key]
+        """
+        # else：
+        # loop through whole column to find a list of rid
+        """
+            
         result = self.table.find_record(rid)
+        # print(result)
         column = result[DEFAULT_PAGE:DEFAULT_PAGE + self.table.num_columns + 1]
         
         # if record has update record
@@ -140,6 +148,7 @@ class Query:
     """
     def update(self, primary_key, *columns):
         columns = list(columns)
+        
         if primary_key not in self.table.key_RID.keys():
             return False;
         if columns[self.table.key_column] in self.table.key_RID.keys():
@@ -177,7 +186,7 @@ class Query:
                         new_encoding += '1'
                     else:
                         new_encoding += '0'
-
+        
         # update base record
         self.table.update_value(INDIRECTION, location_base, tail_rid)
         self.table.update_value(SCHEMA_ENCODING, location_base, new_encoding)
@@ -186,12 +195,8 @@ class Query:
         
         # print("columns in insert: {}".format(columns))
         meta_data.extend(columns)
-        self.table.tail_write(meta_data)
-
-        # 加【key，RID】进去table.key_RID
-        key = columns[self.table.key_column]
-        self.table.key_RID[key] = tail_rid
-        self.table.num_records += 1
+        
+        self.table.tail_write(*meta_data)
         
         return True
 
@@ -211,17 +216,30 @@ class Query:
             if key in self.table.key_RID.keys():
                 rid = self.table.key_RID[key]
                 record = self.table.find_record(rid)
+                # never been updated
                 if record[INDIRECTION] == MAX_INT:
                     total_sum += record[column_index]
                 else:
+                # have been updated
                     tail_rid = record[INDIRECTION]
-                    encoding = record[SCHEMA_ENCODING]
+                    tail_record = self.table.find_record(tail_rid)
+                    updated_column = tail_record[DEFAULT_PAGE:DEFAULT_PAGE + self.table.num_columns + 1]
+                    encoding = tail_record[SCHEMA_ENCODING]
                     encoding = self.find_changed_col(encoding)
-                    if encoding[aggregate_column_index] == 0:
-                        total_sum += record[column_index]
+                    # print(updated_column)
+                    # print(tail_record)
+                    if encoding[aggregate_column_index] == 1:
+                        total_sum += updated_column[aggregate_column_index]
                     else:
-                        tail_address = self.table.page_directory[tail_rid]
-                        total_sum += self.table.find_value(column_index, tail_address)
+                        total_sum += record[column_index]
+                  
+                    # if encoding[aggregate_column_index] == 0:
+                    #     total_sum += record[column_index]
+                    # else:
+                    #     tail_address = self.table.page_directory[tail_rid]
+                    #     result = self.table.find_value(column_index, tail_address)
+                    #     if result != MAX_INT:
+                    #         total_sum += result
 
         return total_sum
 

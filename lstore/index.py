@@ -4,15 +4,16 @@ A data strucutre holding indices for various columns of a table. Key column shou
 
 from lstore.page import Page
 from BTrees.OOBTree import OOBTree
+
 class Index:
 
     def __init__(self, table):
         # One index for each table. All our empty initially.
-        self.indices = [None for i in range(table.total_num_columns)]
-
+        self.indices = [None for _ in range(table.total_num_columns)]
+        self.key_column = table.key_column
         self.column_num = dict()
         self.table = table
-        self.indices[self.table.key_column] = OOBTree()
+        
         pass
 
     """

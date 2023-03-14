@@ -15,6 +15,7 @@ class Database():
     # Not required for milestone1
     def open(self, path):
         self.db_path = path
+        BufferPool().initial_path(self.db_path)
         
         if not os.path.exists(path):
             os.makedirs(path)
@@ -28,7 +29,7 @@ class Database():
                 table = self.create_table(metadata[0], metadata[1], metadata[2])
                 table.page_directory = metadata[3]
                 table.num_records = metadata[4]
-                table.page_range_index = metadata[5]
+                table.num_updates = metadata[5]
                 table.key_RID = metadata[6]
                 table.table_path = self.db_path
         
@@ -38,16 +39,14 @@ class Database():
         t_meta = {}
         for table in self.tables.values():
             t_meta[table.name] = [table.name, table.num_columns, table.key_column, table.page_directory, table.num_records]
-            t_meta[table.name].append(table.page_range_index)
+            t_meta[table.name].append(table.num_updates)
             t_meta[table.name].append(table.key_RID)
             
         path = os.path.join(self.db_path, "db_metadata.pkl")
         file = open(path, 'w+b')
         pickle.dump(t_meta, file)
         file.close()
-        for table in self.tables.values():
-            buffer_pool = table.buffer_pool
-            buffer_pool.close()
+        BufferPool.close()
         
         
 

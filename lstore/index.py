@@ -9,13 +9,19 @@ class Index:
 
     def __init__(self, table):
         # One index for each table. All our empty initially.
-        self.indices = [None for _ in range(table.total_num_columns)]
+        self.indices = [None for _ in range(table.num_columns)]
         self.key_column = table.key_column
         self.column_num = dict()
         self.table = table
         
         pass
 
+    def has_index(self, column):
+        if self.indices[column] == None:
+            return False
+        else:
+            return True
+        
     """
     # returns the location of all records with the given value on column "column"
     """
@@ -45,7 +51,8 @@ class Index:
     """
 
     def create_index(self, column_number):
-        self.indices[column_number] = OOBTree()
+        if self.indices[column_number] == None:
+            self.indices[column_number] = OOBTree()
 
 
     """
@@ -57,15 +64,15 @@ class Index:
         self.indices[column_number] = None
 
 
-    def push_index(self, columns):
-        for i in range(1, self.table.total_num_columns):
+    def push_index(self, columns, rid):
+        for i in range(1, self.table.num_columns):
             if self.indices[i] == None:
                 self.create_index(i)
             #print("indices:{}".format(self.indices))
             if not self.indices[i].has_key(columns[i]):
-                self.indices[i][columns[i]]= [columns[0]]
+                self.indices[i][columns[i]]= [rid]
             else:
-                self.indices[i][columns[i]].append(columns[0])
+                self.indices[i][columns[i]].append(rid)
             self.column_num[columns[i]] = i
 
     '''

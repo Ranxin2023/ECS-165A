@@ -7,73 +7,78 @@ import pickle
 import os
 
 class BufferPool:
-    def __init__(self, capacity = 500):
-        self.path = ""
-        self.LRU = LRU()
-        self.capcity = capacity
-        self.pool = {}
-        # self.tps = {}
-        
-        
-    def initial_path(self, path):
-        self.path = path
-
-#     need for merge
-    def initial_tps(self, t_name):
-        if t_name not in self.tps.keys():
-            self.tps[t_name] = {}
+    path = ""
+    LRU = LRU()
+    pool = {}
+    capacity = 0
+    mergeQ = {'base': [], 'tail': []}
     
     
-    def page_buffer_checker(self, buffer_id):
-        return buffer_id in self.pool.keys()
-            
-    def add_pages(self, buffer_id, page):
-        self.pool[buffer_id] = page
-        self.pool[buffer_id].set_dirty()
+    def __init__(cls, capacity = 2000):
+        cls.capcity = capacity
+        pass
         
-    def updata_pool(self, buffer_id, page):
-        self.pool[buffer_id] = page
-        self.pool[buffer_id].set_dirty()
+    @classmethod 
+    def initial_path(cls, path):
+        cls.path = path
 
-    def is_full(self):
-        return self.LRU.is_full()
+    # @classmethod 
+    # def initial_tps(cls, t_name):
+    #     if t_name not in cls.tps.keys():
+    #         cls.tps[t_name] = {}
+    
+    @classmethod 
+    def page_buffer_checker(cls, buffer_id):
+        return buffer_id in cls.pool.keys()
+           
+    @classmethod  
+    def add_pages(cls, buffer_id, page):
+        cls.pool[buffer_id] = page
+        cls.pool[buffer_id].set_dirty()
+        
+    @classmethod 
+    def updata_pool(cls, buffer_id, page):
+        cls.pool[buffer_id] = page
+        cls.pool[buffer_id].set_dirty()
 
-    def bufferid_path_pkl(self, buffer_id):
+    @classmethod 
+    def is_full(cls):
+        return cls.LRU.is_full()
+
+    @classmethod 
+    def bufferid_path_pkl(cls, buffer_id):
         # table_name, base_tail, page_range, column_page, page_index = buffer_id
-        # path = os.path.join(self.path, str(column_page), str(page_range), base_tail, str(page_index) + '.pkl')
+        # path = os.path.join(cls.path, str(column_page), str(page_range), base_tail, str(page_index) + '.pkl')
         
-        dirname = os.path.join(self.path, str(buffer_id[2]), str(buffer_id[3]), buffer_id[1])
+        dirname = os.path.join(cls.path, str(buffer_id[2]), str(buffer_id[3]), buffer_id[1])
         file_path = os.path.join(dirname, str(buffer_id[4]) + '.pkl')
         return file_path
     
     
-    # def bufferid_path_txt(self, buffer_id):
+    # def bufferid_path_txt(cls, buffer_id):
     #     table_name, base_tail, column_page, page_range, page_index = buffer_id
-    #     path =  os.path.join(self.path, table_name, str(column_page), str(page_range), base_tail, str(page_index) + 'txt')
+    #     path =  os.path.join(cls.path, table_name, str(column_page), str(page_range), base_tail, str(page_index) + 'txt')
     #     return path
 
-        
-    def get_page(self, buffer_id):
-        if buffer_id in self.pool:
-            return self.pool[buffer_id]
-        path = self.bufferid_path_pkl(buffer_id)
+    @classmethod 
+    def get_page(cls, buffer_id):
+        if buffer_id in cls.pool:
+            return cls.pool[buffer_id]
+        path = cls.bufferid_path_pkl(buffer_id)
         # create new_page
         if not os.path.isfile(path):
             page = Page()
-            self.add_pages(buffer_id, page)
-            # dirname = os.path.dirname(path)
-            # if not os.path.isdir(dirname):
-            #     os.makedirs(dirname)
+            cls.add_pages(buffer_id, page)
             return page
         # page already exist
         else:
-            if not self.page_buffer_checker(buffer_id):
-                self.pool[buffer_id] = self.read_page(path)
-            self.LRU.put(buffer_id, datetime.timestamp(datetime.now()))
-            return self.pool[buffer_id]
+            if not cls.page_buffer_checker(buffer_id):
+                cls.pool[buffer_id] = cls.read_page(path)
+            # cls.LRU.put(buffer_id, datetime.timestamp(datetime.now()))
+            return cls.pool[buffer_id]
         
-
-    def read_page(self, path):
+    @classmethod 
+    def read_page(cls, path):
         f = open(path, 'r+b')
         page = Page()
         metadata = pickle.load(f)
@@ -85,10 +90,10 @@ class BufferPool:
         page.data = pickle.load(f)
         f.close()
         return page
-        
-
-    def write_page(self, page, buffer_id):
-        dirname = os.path.join(self.path, str(buffer_id[2]), str(buffer_id[3]), buffer_id[1])
+       
+    @classmethod  
+    def write_page(cls, page, buffer_id):
+        dirname = os.path.join(cls.path, str(buffer_id[2]), str(buffer_id[3]), buffer_id[1])
         file_path = os.path.join(dirname, str(buffer_id[4]) + '.pkl')
         if not os.path.exists(dirname):
             os.makedirs(dirname)
@@ -98,8 +103,9 @@ class BufferPool:
         pickle.dump(page.data, f)
         f.close()
 
-    def close(self):
-        for buffer_id in self.pool:
-            self.write_page(self.pool[buffer_id], buffer_id)
+    @classmethod 
+    def close(cls):
+        for buffer_id in cls.pool:
+            cls.write_page(cls.pool[buffer_id], buffer_id)
 
 

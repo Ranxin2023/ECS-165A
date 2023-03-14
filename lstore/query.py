@@ -27,7 +27,6 @@ class Query:
 
     def delete(self, key):
         rid = self.table.key_RID[key]
-        
         del self.table.key_RID[key]
         del self.table.page_directory[rid]
 
@@ -39,7 +38,6 @@ class Query:
     # Returns False if insert fails for whatever reason
     """
     def insert(self, *columns):
-        # 加【key，RID】进去table.key_RID
         key = columns[self.table.key_column]
         if key in self.table.key_RID.keys():
             return False;
@@ -48,12 +46,11 @@ class Query:
         indirection = MAX_INT
         rid = self.table.num_records
         time = datetime.now().strftime("%Y%m%d%H%M%S")
-        meta_data = [rid, int(time), schema_encoding, indirection]
+        base_id = rid
+        meta_data = [rid, int(time), schema_encoding, indirection, base_id]
         columns = list(columns)
-        # print("columns in insert: {}".format(columns))
-        meta_data.extend(columns)
-        # print("metadata in insert: {}".format(meta_data))
         
+        meta_data.extend(columns)
         self.table.base_write(meta_data)
 
         return True
@@ -70,10 +67,12 @@ class Query:
     """
     def find_column_bufferID(self, column):
         buffer_rid = []
-        num_page_range = self.table.page_range_index + 1
-        for i in range(num_page_range):
-            for k in range(self.table.page_range_list[i].base_page_index):
-                buffer_id = (self.table.table_path, "base", str(column), str(i), str(k))
+        num_base = self.table.num_records - self.table.num_updates
+        num_page_range = num_base % RECORD_PER_PAGERANGE + 1
+        num_base_page = num_base % RECORD_PER_PAGE + 1
+        for page_range in range(num_page_range):
+            for base_page in range(num_base_page):
+                buffer_id = (self.table.table_path, "base", str(column), str(page_range), str(base_page))
                 buffer_rid.append(buffer_id) 
         
         return buffer_rid
@@ -84,12 +83,16 @@ class Query:
         column = []
         rids = []
         
-        index_column = search_key_index + DEFAULT_PAGE
         if search_key_index == self.table.key_column:
-            rid = self.table.key_RID[search_key]
-            rids.append(rid)
+            if search_key in self.table.key_RID.keys():
+                rids.append(self.table.key_RID[search_key])
+        elif self.table.index.has_index(search_key_index):
+            rids = self.table.index.locate(search_key_index, search_key)
         else:
-            rids = self.find_column_bufferID(index_column)
+            rids = self.table.find_value_rid(search_key_index, search_key)
+            
+        if len(rids) == 0:
+                return []
         
         for rid in rids:
             result = self.table.find_record(rid)
@@ -100,7 +103,7 @@ class Query:
             if result[INDIRECTION] != MAX_INT:
             # use indirection of base record to find tail record
                 rid_tail = result[INDIRECTION]
-                # rid_tail = self.table.key_RID[indirection]
+                
                 result_tail = self.table.find_record(rid_tail)
                 updated_column = result_tail[DEFAULT_PAGE:DEFAULT_PAGE + self.table.num_columns + 1]
                 encoding = result[SCHEMA_ENCODING]
@@ -155,14 +158,16 @@ class Query:
         columns = list(columns)
         
         if primary_key not in self.table.key_RID.keys():
-            return False;
+            return False
         if columns[self.table.key_column] in self.table.key_RID.keys():
-            return False;
+            return False
+        if columns[self.table.key_column] != None:
+            return False
         
         tail_rid = self.table.num_records
         time = datetime.now().strftime("%Y%m%d%H%M%S")
-        
         rid = self.table.key_RID[primary_key]
+        base_id = rid
         result = self.table.find_record(rid)
         indirection = result[INDIRECTION]
         new_encoding = '' 
@@ -196,13 +201,13 @@ class Query:
         self.table.update_value(INDIRECTION, location_base, tail_rid)
         self.table.update_value(SCHEMA_ENCODING, location_base, new_encoding)
         
-        meta_data = [tail_rid, int(time), new_encoding, tail_indirect]
-        
-        # print("columns in insert: {}".format(columns))
+        meta_data = [tail_rid, int(time), new_encoding, tail_indirect, base_id]
         meta_data.extend(columns)
+        self.table.tail_write(meta_data)
         
-        self.table.tail_write(*meta_data)
-        
+        # for merge
+        # location = self.table.page_directory[tail_rid]
+        # self.table.merge_trigger(location)
         return True
 
     

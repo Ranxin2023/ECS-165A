@@ -8,10 +8,10 @@ import os
 
 class BufferPool:
     path = ""
-    LRU = LRU()
+    # LRU = LRU()
     pool = {}
     capacity = 0
-    mergeQ = {'base': [], 'tail': []}
+    # mergeQ = {'base': [], 'tail': []}
     
     
     def __init__(cls, capacity = 2000):

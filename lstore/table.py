@@ -2,8 +2,10 @@ from lstore.index import Index
 from lstore.config import *
 from lstore.page import PageRange
 from lstore.bufferpool import BufferPool
+from lstore.lock_manage import RWLock
+from collections import defaultdict
+from threading import Lock
 import time
-import threading
 import os
 
 
@@ -33,6 +35,21 @@ class Table:
         self.num_records = 0
         self.num_updates = 0
         self.key_RID = {}
+        
+        self.lock_manager = defaultdict()
+        self.new_record = Lock()
+        self.update_record = Lock()
+        
+        
+        '''
+        # Key: (table_name, col_index, page_range_index), value: threading lock 
+        self.rid_locks = defaultdict(lambda: defaultdict(threading.Lock())) 
+        # Key: (table_name, col_index, page_range_index,page_index), value: threading lock  
+        self.page_locks = defaultdict(lambda: defaultdict(threading.Lock()))
+        '''
+        
+    def get_rid(self, key):
+        return self.key_RID[key]
         
         
     def set_path(self, path):
@@ -69,6 +86,7 @@ class Table:
 
     # column is the insert data
     def base_write(self, columns):
+        # self.new_record.acquire()
         page_range_index, base_page_index = self.determine_page_location('base')
         for i, value in enumerate(columns):     
             # use buffer_id to find the page
@@ -81,6 +99,8 @@ class Table:
                     base_page_index = 0
                 else:
                     base_page_index += 1
+                buffer_id = (self.name, "base", i, page_range_index, base_page_index)
+            
             
             # write in
             page.write(value)
@@ -94,9 +114,11 @@ class Table:
         self.key_RID[columns[self.key_column + DEFAULT_PAGE]] = rid
         self.num_records += 1
         self.index.push_index(columns[DEFAULT_PAGE:len(columns) + 1], rid)
+        # self.new_record.release()
         
 
     def tail_write(self, columns):
+        # self.update_record.acquire()
         page_range_index, tail_page_index = self.determine_page_location('tail')
         # print("column in baseWrite: {}".format(column))
         for i, value in enumerate(columns):
@@ -105,11 +127,8 @@ class Table:
             page = BufferPool.get_page(buffer_id)
             
             if not page.has_capacity():
-                if base_page_index == MAX_PAGE - 1:
-                    page_range_index += 1
-                    base_page_index = 0
-                else:
-                    base_page_index += 1
+                tail_page_index += 1
+                buffer_id = (self.name, "tail", i, page_range_index,tail_page_index)
                     
             page = BufferPool.get_page(buffer_id)
             # write in
@@ -125,6 +144,7 @@ class Table:
         self.key_RID[columns[self.key_column + DEFAULT_PAGE]] = rid
         self.num_records += 1
         self.num_updates += 1
+        # self.update_record.release()
         
     def find_value_rid(self, column_index, target):
         rids = []

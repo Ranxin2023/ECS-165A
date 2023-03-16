@@ -3,10 +3,6 @@ from lstore.index import Index
 from datetime import datetime
 from lstore.config import *
 
-
-
-
-
 class Query:
     """
     # Creates a Query object that can perform different queries on the specified table 
@@ -29,7 +25,6 @@ class Query:
         rid = self.table.key_RID[key]
         del self.table.key_RID[key]
         del self.table.page_directory[rid]
-
         return True
 
     """
@@ -42,6 +37,7 @@ class Query:
         if key in self.table.key_RID.keys():
             return False;
         
+        self.table.new_record.acquire()
         schema_encoding = '0' * self.table.num_columns
         indirection = MAX_INT
         rid = self.table.num_records
@@ -49,10 +45,12 @@ class Query:
         base_id = rid
         meta_data = [rid, int(time), schema_encoding, indirection, base_id]
         columns = list(columns)
-        
         meta_data.extend(columns)
+        
+        # self.table.lock_manager[key].acquire_wlock()
         self.table.base_write(meta_data)
-
+        # self.table.lock_manager[key].release_wlock()
+        self.table.new_record.release()
         return True
 
     
@@ -155,6 +153,7 @@ class Query:
     # Returns False if no records exist with given key or if the target record cannot be accessed due to 2PL locking
     """
     def update(self, primary_key, *columns):
+        
         columns = list(columns)
         
         if primary_key not in self.table.key_RID.keys():
@@ -164,6 +163,7 @@ class Query:
         if columns[self.table.key_column] != None:
             return False
         
+        self.table.update_record.acquire()
         tail_rid = self.table.num_records
         time = datetime.now().strftime("%Y%m%d%H%M%S")
         rid = self.table.key_RID[primary_key]
@@ -205,6 +205,8 @@ class Query:
         meta_data.extend(columns)
         self.table.tail_write(meta_data)
         
+        self.table.update_record.release()
+        
         # for merge
         # location = self.table.page_directory[tail_rid]
         # self.table.merge_trigger(location)
@@ -242,14 +244,6 @@ class Query:
                         total_sum += updated_column[aggregate_column_index]
                     else:
                         total_sum += record[column_index]
-                  
-                    # if encoding[aggregate_column_index] == 0:
-                    #     total_sum += record[column_index]
-                    # else:
-                    #     tail_address = self.table.page_directory[tail_rid]
-                    #     result = self.table.find_value(column_index, tail_address)
-                    #     if result != MAX_INT:
-                    #         total_sum += result
 
         return total_sum
 
@@ -276,7 +270,7 @@ class Query:
     # Returns False if no record matches key or if target record is locked by 2PL.
     """
     def increment(self, key, column):
-        r = self.select(key, self.table.key, [1] * self.table.num_columns)[0]
+        r = self.select(key, self.table.key_column, [1] * self.table.num_columns)[0]
         if r is not False:
             updated_columns = [None] * self.table.num_columns
             updated_columns[column] = r[column] + 1

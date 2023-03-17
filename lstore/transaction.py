@@ -65,17 +65,17 @@ class Transaction:
     
     def commit(self):
         # TODO: commit to database
-        
-        # for query, args in self.queries:
-        #     query(*args)
-        #     # remove lock from lock manager after deleting record
-        #     if query == Query.delete:
-        #         del self.table.lock_manager[key]
-        #         if key in self.write_locks:
-        #             self.insert_locks.remove(key)
-        #         if key in self.insert_locks:
-        #             self.insert_locks.remove(key)
-        
+
+        for query, args in self.queries:
+             query(*args)
+             # remove lock from lock manager after deleting record
+             if query == Query.delete:
+                 del self.table.lock_manager[key]
+                 if key in self.write_locks:
+                     self.insert_locks.remove(key)
+                 if key in self.insert_locks:
+                     self.insert_locks.remove(key)
+
         for key in self.read_locks:
             self.table.lock_manager[key].release_rlock()
         for key in self.write_locks:
